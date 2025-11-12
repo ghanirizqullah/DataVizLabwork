@@ -10,3 +10,4 @@ wheels/
 .venv
 dataset/metadata.csv
 dataset/reviews.csv
+.ipynb_checkpoints/
