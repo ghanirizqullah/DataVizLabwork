@@ -28,13 +28,23 @@ genre_data = load_genre()
 top_books_data = load_top_books()
 top_authors_data = load_top_authors()
 
-# Year filter
-year_range = st.slider(
-    "Published Year",
-    min_value=int(scorecard['year'].min()),
-    max_value=int(scorecard['year'].max()),
-    value=(2000, int(scorecard['year'].max()))
-)
+# Filters
+filter_col1, filter_col2 = st.columns(2)
+
+with filter_col1:
+    year_range = st.slider(
+        "Published Year",
+        min_value=int(scorecard['year'].min()),
+        max_value=int(scorecard['year'].max()),
+        value=(2000, int(scorecard['year'].max()))
+    )
+
+with filter_col2:
+    measure = st.selectbox(
+        "Measure for Top N Charts",
+        options=["Sales", "Reviews"],
+        index=0
+    )
 
 # Filter data by year range
 filtered_data = scorecard[(scorecard['year'] >= year_range[0]) & (scorecard['year'] <= year_range[1])]
@@ -114,51 +124,60 @@ with col_left:
     # Filter genre data by year range
     filtered_genre = genre_data[(genre_data['year'] >= year_range[0]) & (genre_data['year'] <= year_range[1])]
     
+    # Select measure column based on filter
+    measure_col = 'total_sales' if measure == 'Sales' else 'review_count'
+    measure_label = 'Sales' if measure == 'Sales' else 'Reviews'
+    
     # Aggregate by genre
-    genre_totals = filtered_genre.groupby('genre')['book_count'].sum().reset_index()
-    genre_totals = genre_totals.sort_values('book_count', ascending=False)
+    genre_totals = filtered_genre.groupby('genre')[measure_col].sum().reset_index()
+    genre_totals = genre_totals.sort_values(measure_col, ascending=False)
     
     # Keep top 5 and group the rest as 'Others'
     top_5 = genre_totals.head(5)
-    others_count = genre_totals.iloc[5:]['book_count'].sum()
+    others_count = genre_totals.iloc[5:][measure_col].sum()
     
     if others_count > 0:
-        others_row = pd.DataFrame({'genre': ['Others'], 'book_count': [others_count]})
+        others_row = pd.DataFrame({'genre': ['Others'], measure_col: [others_count]})
         genre_totals_display = pd.concat([top_5, others_row], ignore_index=True)
     else:
         genre_totals_display = top_5
     
     # Display pie chart
-    fig = px.pie(genre_totals_display, values='book_count', names='genre', title='Book Distribution by Genre')
-    fig.update_layout(height=500)
+    fig = px.pie(genre_totals_display, values=measure_col, names='genre', title=f'Top 5 Genres by {measure_label}')
+    fig.update_layout(height=500, margin=dict(l=20, r=20, t=40, b=20),  title_font=dict(size=25))
     st.plotly_chart(fig, use_container_width=True)
 
 with col_right:
+    # Select measure column based on filter
+    measure_col = 'total_sales' if measure == 'Sales' else 'total_reviews'
+    measure_label = 'Sales' if measure == 'Sales' else 'Reviews'
+    x_axis_label = 'Sales ($)' if measure == 'Sales' else 'Reviews'
+    
     # Filter and aggregate top authors
     filtered_authors = top_authors_data[(top_authors_data['year'] >= year_range[0]) & (top_authors_data['year'] <= year_range[1])]
-    top_authors_agg = filtered_authors.groupby('author_name')['total_sales'].sum().reset_index()
-    top_authors_agg = top_authors_agg.sort_values('total_sales', ascending=False).head(10)
+    top_authors_agg = filtered_authors.groupby('author_name')[measure_col].sum().reset_index()
+    top_authors_agg = top_authors_agg.sort_values(measure_col, ascending=False).head(10)
     
     # Create horizontal bar chart
-    fig_authors = px.bar(top_authors_agg, x='total_sales', y='author_name', orientation='h',
-                         labels={'total_sales': 'Sales ($)', 'author_name': 'Author'},
-                         title='Top 10 Authors by Sales')
-    fig_authors.update_layout(yaxis={'categoryorder':'total ascending'}, height=250, margin=dict(l=20, r=20, t=40, b=20))
+    fig_authors = px.bar(top_authors_agg, x=measure_col, y='author_name', orientation='h',
+                         labels={measure_col: x_axis_label, 'author_name': 'Author'},
+                         title=f'Top 10 Authors by {measure_label}')
+    fig_authors.update_layout(yaxis={'categoryorder':'total ascending'}, height=250, margin=dict(l=20, r=20, t=40, b=20), title_font=dict(size=25))
     st.plotly_chart(fig_authors, use_container_width=True)
     
     # Filter and aggregate top books
     filtered_books = top_books_data[(top_books_data['year'] >= year_range[0]) & (top_books_data['year'] <= year_range[1])]
-    top_books_agg = filtered_books.groupby(['title', 'author_name'])['total_sales'].sum().reset_index()
-    top_books_agg = top_books_agg.sort_values('total_sales', ascending=False).head(10)
+    top_books_agg = filtered_books.groupby(['title', 'author_name'])[measure_col].sum().reset_index()
+    top_books_agg = top_books_agg.sort_values(measure_col, ascending=False).head(10)
     
     # Create shortened title for display
     top_books_agg['title_short'] = top_books_agg['title'].apply(lambda x: x[:15] + '...' if len(x) > 15 else x)
     
     # Create horizontal bar chart
-    fig_books = px.bar(top_books_agg, x='total_sales', y='title_short', orientation='h',
-                       labels={'total_sales': 'Sales ($)', 'title_short': 'Book Title'},
-                       title='Top 10 Books by Sales',
-                       hover_data={'title': True, 'title_short': False, 'total_sales': True})
-    fig_books.update_layout(yaxis={'categoryorder':'total ascending'}, height=250, margin=dict(l=20, r=20, t=40, b=20))
+    fig_books = px.bar(top_books_agg, x=measure_col, y='title_short', orientation='h',
+                       labels={measure_col: x_axis_label, 'title_short': 'Book Title'},
+                       title=f'Top 10 Books by {measure_label}',
+                       hover_data={'title': True, 'title_short': False, measure_col: True})
+    fig_books.update_layout(yaxis={'categoryorder':'total ascending'}, height=250, margin=dict(l=20, r=20, t=40, b=20), title_font=dict(size=25))
     st.plotly_chart(fig_books, use_container_width=True)
     

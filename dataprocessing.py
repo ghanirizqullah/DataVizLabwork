@@ -50,8 +50,11 @@ genre_data = query("""
     select 
         year(m.published_date) as year,
         m.category_level_3_detail as genre,
-        count(distinct m.parent_asin) as book_count
+        count(distinct m.parent_asin) as book_count,
+        count(r.asin) as review_count,
+        sum(r.rating * m.price) as total_sales
     from processed_metadata m
+    left join books_reviews r using(parent_asin)
     where m.published_date is not null and m.category_level_3_detail is not null
     group by year(m.published_date), m.category_level_3_detail
     order by year, book_count desc
@@ -65,6 +68,7 @@ top_books_data = query("""
         year(m.published_date) as year,
         m.title,
         m.author_name,
+        count(r.asin) as total_reviews,
         sum(r.rating * m.price) as total_sales
     from processed_metadata m
     left join books_reviews r using(parent_asin)
@@ -80,6 +84,7 @@ top_authors_data = query("""
     select 
         year(m.published_date) as year,
         m.author_name,
+        count(r.asin) as total_reviews,
         sum(r.rating * m.price) as total_sales
     from processed_metadata m
     left join books_reviews r using(parent_asin)
