@@ -41,7 +41,9 @@ def get_measure_cols(measure):
     }
 
 def truncate_text(text, max_len=15):
-    return (text[:max_len] + '...')[:max_len].ljust(max_len) if len(text) > max_len else text.ljust(max_len)
+    if len(text) > max_len:
+        return text[:max_len - 3] + '...'
+    return text
 
 def create_sparkline_chart(data, y_col):
     fig = px.area(data, x='year', y=y_col)
@@ -185,7 +187,6 @@ with col_format_comparison:
 
 
 with col_format_trends:
-    st.write("**Pricing Trends by Format**")
     # Line chart 1: Average price by year (All Formats)
     format_measure_col = 'avg_price'
     format_axis_label = 'Average Price ($)'
@@ -232,8 +233,8 @@ genre_sums = filtered_genre.groupby('genre')[cols['genre_col']].sum().reset_inde
 top_genres = genre_sums.nlargest(5, cols['genre_col'])['genre'].tolist()
 color_palette = ['#08519c', '#3182bd', '#6baed6', '#9ecae1', '#c6dbef']
 
-# Top 20 Publishers (Dual-Axis)
-st.subheader(f"Top 20 Publishers by {cols['label']} + Avg Rating")
+# Top 20 Publishers
+st.subheader(f"Top 20 Publishers by {cols['label']}")
 filtered_publishers = top_publishers_data[filter_by_year(top_publishers_data, year_range)].copy()
 if selected_genre != "All Genres":
     filtered_publishers = filtered_publishers[filtered_publishers['genre'] == selected_genre]
@@ -249,8 +250,7 @@ publisher_agg = filtered_publishers.groupby('publisher_name').agg({
 publisher_agg['avg_rating'] = publisher_agg.apply(lambda r: (r['weighted_rating'] / r['total_reviews']) if r['total_reviews'] > 0 else 0, axis=1)
 
 # Take top 20 by primary measure and preserve order
-publisher_agg = publisher_agg.sort_values(publisher_col, ascending=False).head(20)
-category_order = publisher_agg['publisher_name'].tolist()
+publisher_agg = publisher_agg.sort_values(publisher_col, ascending=False).head(20).reset_index(drop=True)
 
 def format_publisher_value(val):
     if measure == 'Sales':
@@ -266,42 +266,26 @@ def format_publisher_value(val):
         else:
             return f'{val/1e3:.0f}K'
 
-fig_publishers = go.Figure()
+# Create display names with ranking prefix (no truncation)
+publisher_agg['display_name'] = publisher_agg.apply(lambda row: f"{row.name + 1}. {truncate_text(row['publisher_name'])}", axis=1)
 
-# Primary measure bars (left axis)
-fig_publishers.add_trace(go.Bar(
-    x=publisher_agg['publisher_name'],
-    y=publisher_agg[publisher_col],
-    name=cols['label'],
-    marker_color='#3182BD',
-    text=[format_publisher_value(v) for v in publisher_agg[publisher_col]],
-    textposition='outside',
-    hovertemplate='<b>%{x}</b><br>' + cols['axis_label'] + ': %{y:,.0f}<extra></extra>'
-))
+# Create custom two-line labels: Avg. Rating: X.XX \n Total Measure
+text_labels = []
+for idx, row in publisher_agg.iterrows():
+    rating_line = f"Avg. Rating: {row['avg_rating']:.2f}"
+    measure_line = format_publisher_value(row[publisher_col])
+    text_labels.append(f"{rating_line}<br>{measure_line}")
 
-# Secondary measure line (right axis: average rating)
-fig_publishers.add_trace(go.Scatter(
-    x=publisher_agg['publisher_name'],
-    y=publisher_agg['avg_rating'],
-    name='Avg Rating',
-    yaxis='y2',
-    mode='lines+markers',
-    line=dict(color='#9ecae1', width=2),
-    marker=dict(size=7, color='#9ecae1'),
-    hovertemplate='<b>%{x}</b><br>Avg Rating: %{y:.2f}<extra></extra>'
-))
-
-fig_publishers.update_layout(
-    height=500,
-    margin=dict(l=20, r=20, t=40, b=20),
-    xaxis=dict(categoryorder='array', categoryarray=category_order, tickangle=-45, title='Publisher'),
-    yaxis=dict(title=cols['axis_label'], showgrid=False),
-    yaxis2=dict(title='Avg Rating', overlaying='y', side='right', showgrid=True, gridcolor='rgba(158,202,225,0.3)', zeroline=False, range=[0,5]),
-    barmode='group',
-    bargap=0.25,
-    hovermode='x unified',
-    legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='left', x=0)
-)
+fig_publishers = px.bar(publisher_agg, x='display_name', y=publisher_col,
+                        labels={'display_name': 'Publisher', publisher_col: cols['axis_label']},
+                        color_discrete_sequence=['#3182BD'])
+fig_publishers.update_layout(height=500, margin=dict(l=20, r=20, t=40, b=20),
+                            xaxis={'categoryorder': 'total descending'},
+                            xaxis_title='Publisher', yaxis_title=cols['axis_label'])
+fig_publishers.update_xaxes(showgrid=False, tickangle=-45)
+fig_publishers.update_yaxes(showgrid=False)
+fig_publishers.update_traces(text=text_labels, textposition='outside', textfont=dict(size=9),
+                            hovertemplate='<b>%{x}</b><br>' + cols['axis_label'] + ': %{y:,.0f}<extra></extra>')
 st.plotly_chart(fig_publishers, config={'responsive': True}, use_container_width=True)
 
 # Top 10 Books and Authors
