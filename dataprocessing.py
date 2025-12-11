@@ -1,14 +1,39 @@
 import pandas as pd
 import duckdb
+import os
+import kagglehub
+from kagglehub import KaggleDatasetAdapter
+import pandas as pd
 
 def query(s):
     return duckdb.sql(s).df()
 
-# Load raw data
-books_metadata = pd.read_csv('./dataset/metadata.csv', index_col=0)
-books_reviews = pd.read_csv('./dataset/reviews.csv', index_col=0)
+outdir = './dataset'
+if not os.path.exists(outdir):
+    os.mkdir(outdir)
 
-# Process metadata with proper dates
+metadata_path = './dataset/metadata.csv'
+reviews_path = './dataset/reviews.csv'
+
+if not os.path.exists(metadata_path) or not os.path.exists(reviews_path):
+    # Download and save the files locally
+    books_metadata = kagglehub.dataset_load(
+        "hadifariborzi/amazon-books-dataset-20k-books-727k-reviews",
+        "amazon_books_metadata_sample_20k.csv",
+    )
+    
+    books_reviews = kagglehub.dataset_load(
+        "hadifariborzi/amazon-books-dataset-20k-books-727k-reviews",
+        "amazon_books_reviews_sample_20k.csv",
+    )
+    
+    books_metadata.to_csv(metadata_path)
+    books_reviews.to_csv(reviews_path)
+
+# Load raw data
+books_metadata = pd.read_csv(metadata_path, index_col=0)
+books_reviews = pd.read_csv(reviews_path, index_col=0)
+
 processed_metadata = query("""
     with p1 as (
       select 
@@ -26,10 +51,8 @@ processed_metadata = query("""
     from p1
 """)
 
-# Save processed metadata
 processed_metadata.to_csv('./dataset/processed_metadata.csv', index=False)
 
-# Create scorecard aggregates by year
 scorecard_data = query("""
     select 
         year(m.published_date) as year,
@@ -45,7 +68,6 @@ scorecard_data = query("""
 
 scorecard_data.to_csv('./dataset/scorecard_data.csv', index=False)
 
-# Create genre proportions by year
 genre_data = query("""
     select 
         year(m.published_date) as year,
@@ -62,7 +84,6 @@ genre_data = query("""
 
 genre_data.to_csv('./dataset/genre_data.csv', index=False)
 
-# Create top books by sales
 top_books_data = query("""
     select 
         year(m.published_date) as year,
@@ -80,7 +101,6 @@ top_books_data = query("""
 
 top_books_data.to_csv('./dataset/top_books_data.csv', index=False)
 
-# Create top authors by sales
 top_authors_data = query("""
     select 
         year(m.published_date) as year,
@@ -96,7 +116,6 @@ top_authors_data = query("""
 
 top_authors_data.to_csv('./dataset/top_authors_data.csv', index=False)
 
-# Create book format analysis data
 format_data = query("""
     select 
         year(m.published_date) as year,
@@ -114,7 +133,6 @@ format_data = query("""
     order by year, book_format
 """)
 
-# Add "All Formats" aggregate by year
 all_formats = query("""
     select 
         year(m.published_date) as year,
@@ -134,7 +152,6 @@ all_formats = query("""
 format_data = pd.concat([format_data, all_formats], ignore_index=True)
 format_data.to_csv('./dataset/format_data.csv', index=False)
 
-# Create top publishers data
 top_publishers_data = query("""
     select 
         year(m.published_date) as year,

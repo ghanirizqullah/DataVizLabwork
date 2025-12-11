@@ -1,0 +1,8 @@
+pandas
+duckdb
+kagglehub
+streamlit
+plotly
+wordcloud
+matplotlib
+numpy
