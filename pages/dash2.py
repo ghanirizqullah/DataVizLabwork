@@ -305,7 +305,7 @@ st.markdown('<div class="section-label">Author–Books Network Graph</div>', uns
 try:
     with open("./dataset/Author_to_Books.html", "r", encoding="utf-8") as f:
         graph_html = f.read()
-    st.components.v1.html(graph_html, height=600, scrolling=True)
+    st.components.v1.html(graph_html, height=600, scrolling=True) # type: ignore
 except FileNotFoundError:
     st.error("❌ Author_to_Books.html not found.")
 

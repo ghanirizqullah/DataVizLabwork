@@ -14,6 +14,7 @@ if not os.path.exists(outdir):
 
 metadata_path = './dataset/metadata.csv'
 reviews_path = './dataset/reviews.csv'
+clean_reviews_path = './dataset/books_reviews_clean.csv'
 
 if not os.path.exists(metadata_path) or not os.path.exists(reviews_path):
     # Download and save the files locally
@@ -30,9 +31,15 @@ if not os.path.exists(metadata_path) or not os.path.exists(reviews_path):
     books_metadata.to_csv(metadata_path)
     books_reviews.to_csv(reviews_path)
 
+if not os.path.exists(clean_reviews_path):
+    clean_reviews_dir = kagglehub.dataset_download("tobypu/book-reviews-clean")
+    import shutil
+    shutil.copy(os.path.join(clean_reviews_dir, "books_reviews_clean.csv"), clean_reviews_path)
+
 # Load raw data
 books_metadata = pd.read_csv(metadata_path, index_col=0)
 books_reviews = pd.read_csv(reviews_path, index_col=0)
+books_reviews_clean = pd.read_csv(clean_reviews_path, index_col=0)
 
 processed_metadata = query("""
     with p1 as (

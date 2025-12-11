@@ -1,11 +1,13 @@
 # Amazon Books Dashboard
 
-This dashboard is made for Data Visualization Method laboratory grup project at University of Debrecen.
+This dashboard is made for Data Visualization Method laboratory group project at University of Debrecen.
 
-Team member:
+Team members:
 1. Muhammad Ghani Rizqullah
 2. Toby Purbojo
 3. Ikena Udeani
+
+![Preview](Misc/image.png)
 
 ## Setup
 

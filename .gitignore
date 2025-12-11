@@ -8,6 +8,8 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Dataset
 dataset/metadata.csv
 dataset/reviews.csv
 dataset/genre_data.csv
@@ -17,5 +19,4 @@ dataset/top_books_data.csv
 dataset/scorecard_data.csv
 dataset/format_data.csv
 dataset/books_reviews_clean.csv
-Page1 v.1.pdf
 dataset/top_publishers_data.csv
